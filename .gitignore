@@ -1,0 +1,19 @@
+# Airflow
+airflow/logs/
+airflow/plugins/
+
+# Spark
+spark/project
+spark/target
+
+# Other
+neo4j/
+postgres/
+
+# Python
+**/__pycache__/
+
+# IDE
+.metals
+.vscode
+.env
