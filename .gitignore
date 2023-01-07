@@ -2,9 +2,6 @@
 airflow/logs/
 airflow/plugins/
 
-# Other
-data/
-
 # Python
 **/__pycache__/
 
