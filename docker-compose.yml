@@ -63,6 +63,7 @@ x-airflow-common:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/logs:/opt/airflow/logs
     - ./airflow/plugins:/opt/airflow/plugins
+    - ./data:/data
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -265,7 +266,7 @@ services:
     ports:
       - '8081:8080'
     volumes:
-      - ./spark:/opt/bitnami/spark/work
+      - ./data:/data
 
   spark-worker:
     image: docker.io/bitnami/spark:3.3
@@ -279,7 +280,7 @@ services:
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
     volumes:
-      - ./spark:/opt/bitnami/spark/work
+      - ./data:/data
 #- /path/to/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
 
 volumes:
