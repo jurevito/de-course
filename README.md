@@ -6,6 +6,7 @@ Project repository for Data Engineering course.
 
 ## Apache Airflow
 Username and password are `airflow`. The UI can accessed at http://localhost:8080.
+1. Add connection for Apache Spark. Host should be `spark://spark-master` and port is `7077`.
 
 ## Apache Spark
 Can be accessed at http://localhost:8081.

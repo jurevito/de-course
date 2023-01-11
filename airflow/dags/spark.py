@@ -18,26 +18,29 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-with DAG(
+# Initialize DAG.
+dag = DAG(
     dag_id='spark',
     default_args=default_args,
     schedule_interval=timedelta(days=1),
-    start_date=datetime(2021, 1, 1),
+    start_date=datetime(2023, 1, 1),
     catchup=False,
     tags=['example'],
-) as dag:
+)
 
-    first_task = BashOperator(
-        task_id='first_task',
-        bash_command='echo "I will execute job on Spark node."',
-        dag=dag,
-    )
+first_task = BashOperator(
+    task_id='first_task',
+    bash_command='echo "I will execute job on Spark node."',
+    dag=dag,
+)
 
-    submit_job = SparkSubmitOperator(
-		application ='./dags/job.py',
-		conn_id= 'spark_container',
-		task_id='spark_submit_task',
-		dag=dag
-	)
+# Create Spark Submit task.
+submit_job = SparkSubmitOperator(
+	application ='/data/job.py',
+	conn_id= 'spark_container',
+	task_id='spark_submit_task',
+    verbose=1,
+	dag=dag
+)
 
-    first_task >> submit_job
+first_task >> submit_job
