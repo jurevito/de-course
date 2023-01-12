@@ -254,8 +254,13 @@ services:
       - airflow
 
   # ===== Apache Spark =====
+  # Setting "user" privilages the same as the ones in airflow container
+  # allow airflow containers write files in folders that spark container
+  # created. If not specified, job will fail in last step when saving
+  # dataframe to a file.s
   spark-master:
     image: docker.io/bitnami/spark:3.3
+    user: "50000:0"
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -269,6 +274,7 @@ services:
 
   spark-worker:
     image: docker.io/bitnami/spark:3.3
+    user: "50000:0"
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
