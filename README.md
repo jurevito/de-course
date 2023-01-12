@@ -7,11 +7,7 @@ Project repository for Data Engineering course.
 3. Run `pip install -r requirements.txt` to install dependencies locally.
 4. Open Apache Airflow UI at http://localhost:8080 and login with username and password `airflow`.
 5. Add all necessary connections in `Admin -> Connections`.
-    - Add connection for Apache Spark. Host should be `spark://spark-master` and port is `7077`.
-
-## Apache Airflow
-Username and password are `airflow`. The UI can accessed at http://localhost:8080.
-1. Add connection for Apache Spark. Host should be `spark://spark-master` and port is `7077`.
+    - Add connection for Apache Spark. Host should be `spark://spark-master`, port is `7077` and connection ID is `spark_container`.
 
 ## Apache Spark
 Can be accessed at http://localhost:8081.
