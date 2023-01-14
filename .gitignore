@@ -2,6 +2,9 @@
 airflow/logs/
 airflow/plugins/
 
+# Databases
+neo4j/
+
 # Python
 **/__pycache__/
 

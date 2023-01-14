@@ -8,6 +8,7 @@ Project repository for Data Engineering course.
 4. Open Apache Airflow UI at http://localhost:8080 and login with username and password `airflow`.
 5. Add all necessary connections in `Admin -> Connections`.
     - Add connection for Apache Spark. Host should be `spark://spark-master`, port is `7077` and connection ID is `spark_container`.
+    - Add connection for Neo4j. Host should be `neo4j`, port is `7687`, connection ID is `neo4j_container`, login field is `neo4j` and password is `admin`.
 6. Download [dataset](https://www.kaggle.com/datasets/Cornell-University/arxiv?resource=download) and save it as `./data/ingestion/publications.json`. Run `setup.py` script to divide data into chunks.
 
 ## Apache Spark

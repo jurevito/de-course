@@ -257,7 +257,7 @@ services:
   # Setting "user" privilages the same as the ones in airflow container
   # allow airflow containers write files in folders that spark container
   # created. If not specified, job will fail in last step when saving
-  # dataframe to a file.s
+  # dataframe to a file.
   spark-master:
     image: docker.io/bitnami/spark:3.3
     user: "50000:0"
@@ -289,6 +289,15 @@ services:
 #- /path/to/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
 
   # ===== Neo4j =====
+  neo4j:
+    image: neo4j:4.4.14
+    ports:
+      - 7474:7474
+      - 7687:7687
+    volumes:
+      - ./neo4j:/data
+    environment:
+      - NEO4J_AUTH=neo4j/admin
 
 volumes:
   postgres-db-volume:
