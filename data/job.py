@@ -1,6 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import IntegerType
+from pyspark.sql.functions import udf
+from pyspark.sql.types import *
 
 # Create Spark session.
 spark = SparkSession.builder.getOrCreate()
@@ -35,8 +36,37 @@ df = df.withColumn(
     F.when(F.length(n_figures) == 0, None).otherwise(n_figures.cast(IntegerType()))
 )
 
+
+@udf(returnType=ArrayType(MapType(StringType(), StringType())))
+def map_authors(authors):
+    return [{'name': author[1], 'last_name': author[0]} for author in authors]
+
+# Change list of lists into list of JSON objects.
+# Each object is one author.
+df = df.withColumn('authors', map_authors(F.col('authors_parsed')))
+
+@udf(returnType=MapType(StringType(), StringType()))
+def fix_submitter(submitter, authors):
+    names = submitter.split()
+
+    submitter = {
+        'name': None,
+        'last_name': None,
+    }
+
+    for author in authors:
+        if author['last_name'] in names:
+            submitter['name'] = author['name']
+            submitter['last_name'] = author['last_name']
+            break
+
+    return submitter
+
+# Make submitterstring same as one of the authors.
+df = df.withColumn('submitter', fix_submitter(F.col('submitter'), F.col('authors')))
+
 # Remove unnecessary fields.
-drop_cols = ['abstract', 'license', 'authors', 'versions', 'comments']
+drop_cols = ['abstract', 'license', 'versions', 'comments', 'authors_parsed']
 df = df.drop(*drop_cols)
 
 # Save the dataframe as an array of JSON objects in a JSON file.
