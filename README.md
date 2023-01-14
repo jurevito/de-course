@@ -3,7 +3,7 @@ Project repository for Data Engineering course.
 
 ## Project Setup
 1. Install Docker and docker-compose.
-2. Run `docker compose up` to setup containers. First run add `--build` to build airflow image with all dependencies.
+2. Run `docker compose up` to setup containers. First run add `--build` to build airflow image with all dependencies. You can also set number of Spark worker using `--scale spark-worker=3`.
 3. Run `pip install -r requirements.txt` to install dependencies locally.
 4. Open Apache Airflow UI at http://localhost:8080 and login with username and password `airflow`.
 5. Add all necessary connections in `Admin -> Connections`.

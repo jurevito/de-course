@@ -15,4 +15,4 @@ spark-compose.yml
 tmp-compose.yml
 
 # Data
-data/ingestion
+data/**/*.json
