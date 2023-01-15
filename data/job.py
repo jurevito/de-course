@@ -70,7 +70,7 @@ df = df.withColumnRenamed('journal-ref', 'journal_ref')
 df = df.withColumnRenamed('report-no', 'report_number')
 
 # Drop unnecessary fields.
-drop_cols = ['abstract', 'license', 'versions', 'comments', 'authors_parsed']
+drop_cols = ['abstract', 'license', 'versions', 'comments', 'authors_parsed', 'id']
 df = df.drop(*drop_cols)
 
 # Save the dataframe as an array of JSON objects in a JSON file.
