@@ -45,6 +45,31 @@ def get_categories():
     with open('/data/categories.json', 'w+') as json_file:
         json.dump(data, json_file)
 
+def generate_query(json_object):
+    # , journal_ref: '%s', title: '%s', update_date: date('%s'), n_pages: %s, n_figures: %s
+    query = "CREATE (n:Publication {doi: '%s'})"
+    query = query % (
+        json_object['doi'],
+        #json_object['journal_ref'],
+        #json_object['title'],
+        #json_object['update_date'],
+        #json_object['n_pages'],
+        #json_object['n_figures'],
+    )
+
+    return query
+
+def neo4j_queries(file_path):
+
+    queries = []
+
+    with open(file_path, 'r') as json_file:
+        for line in json_file:
+            json_object = json.loads(line)
+            queries.append(generate_query(json_object))
+
+    return ';'.join(queries)
+
 
 default_args = {
     'depends_on_past': False,
@@ -62,44 +87,38 @@ dag = DAG(
     tags=['example'],
 )
 
-first_task = BashOperator(
-    task_id='first_task',
-    bash_command='echo "I will execute job on Spark node."',
-    dag=dag,
-)
-
-# Fetches information about publication category
-# and saves it into JSON file.
-categories_task = PythonOperator(
-    task_id='fetch_categories',
-    python_callable=get_categories,
-    dag=dag
-)
-
-# Submits a Spark job which transforms data.
-submit_job = SparkSubmitOperator(
-    application ='/data/job.py',
-    conn_id= 'spark_container',
-    task_id='spark_submit',
-    name='airflow-spark',
-    verbose=1,
-    dag=dag
-)
+#first_task = BashOperator(
+#    task_id='first_task',
+#    bash_command='echo "I will execute job on Spark node."',
+#    dag=dag,
+#)
+#
+## Fetches information about publication category
+## and saves it into JSON file.
+#categories_task = PythonOperator(
+#    task_id='fetch_categories',
+#    python_callable=get_categories,
+#    dag=dag
+#)
+#
+## Submits a Spark job which transforms data.
+#submit_job = SparkSubmitOperator(
+#    application ='/data/job.py',
+#    conn_id= 'spark_container',
+#    task_id='spark_submit',
+#    name='airflow-spark',
+#    verbose=1,
+#    dag=dag
+#)
 
 # Executes a query on Neo4j database.
 neo4j_task = Neo4jOperator(
     task_id="neo4j_query",
     neo4j_conn_id="neo4j_container",
-    sql="""
-    CREATE (forrestGump:Movie {title: 'Forrest Gump', released: 1994})
-    CREATE (robert:Person:Director {name: 'Robert Zemeckis', born: 1951})
-    CREATE (tom:Person:Actor {name: 'Tom Hanks', born: 1956})
-    CREATE (tom)-[:ACTED_IN {roles: ['Forrest']}]->(forrestGump)
-    CREATE (robert)-[:DIRECTED]->(forrestGump)
-    """,
+    sql='%s' % neo4j_queries('/data/output/part-00000-fbdb61b5-4ed7-4ade-b33f-f779724dea6b-c000.json'),
     dag=dag,
 )
 
 # Setup order of execution.
-first_task >> submit_job >> neo4j_task
-first_task >> categories_task >> neo4j_task
+#first_task >> submit_job >> neo4j_task
+#first_task >> categories_task >> neo4j_task
