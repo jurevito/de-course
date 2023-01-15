@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import requests
 import json
+from py2neo import Graph
 
 def get_categories():
 
@@ -45,31 +46,74 @@ def get_categories():
     with open('/data/categories.json', 'w+') as json_file:
         json.dump(data, json_file)
 
-def generate_query(json_object):
-    # , journal_ref: '%s', title: '%s', update_date: date('%s'), n_pages: %s, n_figures: %s
-    query = "CREATE (n:Publication {doi: '%s'})"
-    query = query % (
-        json_object['doi'],
-        #json_object['journal_ref'],
-        #json_object['title'],
-        #json_object['update_date'],
-        #json_object['n_pages'],
-        #json_object['n_figures'],
-    )
+def escape_chars(string, chars_to_escape):
+    escaped_string = string
+    for char in chars_to_escape:
+        escaped_string = escaped_string.replace(char, '\\'+char)
+    return escaped_string
 
-    return query
+def json_to_cypher_fields(json_object: dict, date_fields: list):
 
-def neo4j_queries(file_path):
+    fields = []
 
-    queries = []
+    for key, val in json_object.items():
+        if val is not None:
+            if key in date_fields:
+                fields.append(f"{key}: date('{val}')")
+            elif isinstance(val, str):
+                tmp = escape_chars(val, ['\''])
+                fields.append(f"{key}: '{tmp}'")
+            else:
+                fields.append(f"{key}: {val}")
+
+    fields_str = ','.join(fields)
+    return '{%s}' % fields_str
+
+def neo4j_queries():
+    file_path = '/data/output/part-00000-32717f90-3564-4323-bc06-a1e708d22acf-c000.json'
+    graph = Graph('bolt://neo4j:7687', auth=('neo4j', 'admin'), name='neo4j')
 
     with open(file_path, 'r') as json_file:
         for line in json_file:
-            json_object = json.loads(line)
-            queries.append(generate_query(json_object))
+            json_object: dict = json.loads(line)
 
-    return ';'.join(queries)
 
+            publication = {
+                'doi': json_object.get('doi', None),
+                'journal_ref': json_object.get('journal_ref', None),
+                'report_number': json_object.get('report_number', None),
+                'title': json_object.get('title', None),
+                'update_date': json_object.get('update_date', None),
+                'n_pages': json_object.get('n_pages', None),
+                'n_figures': json_object.get('n_figures', None),
+            }
+
+            fields = json_to_cypher_fields(publication, ['update_date'])
+            query = """
+            MERGE (n:Publication {doi: '%s'})
+            SET n = %s
+            """ % (publication['doi'], fields)
+            graph.run(query)
+
+            authors = []
+            for author in json_object['authors']:
+                if author['name'] is not None:
+                    person = {
+                        'name': author['name'],
+                        'last_name': author['last_name'],
+                    }
+
+                authors.append(json_to_cypher_fields(person, []))
+            
+            fields = '[%s]' % ','.join(authors)
+            query = """
+            MATCH (n:Publication {doi: '%s'})
+            UNWIND %s AS person
+            MERGE (p:Person {name: person.name, last_name: person.last_name}) SET p = person
+            MERGE (p)-[:IS_AUTHOR]->(n)
+            """ % (publication['doi'], fields)
+            graph.run(query)
+            
 
 default_args = {
     'depends_on_past': False,
@@ -112,11 +156,10 @@ dag = DAG(
 #)
 
 # Executes a query on Neo4j database.
-neo4j_task = Neo4jOperator(
-    task_id="neo4j_query",
-    neo4j_conn_id="neo4j_container",
-    sql='%s' % neo4j_queries('/data/output/part-00000-fbdb61b5-4ed7-4ade-b33f-f779724dea6b-c000.json'),
-    dag=dag,
+neo4j_task = PythonOperator(
+    task_id='create_nodes',
+    python_callable=neo4j_queries,
+    dag=dag
 )
 
 # Setup order of execution.
