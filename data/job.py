@@ -65,7 +65,11 @@ def fix_submitter(submitter, authors):
 # Make submitterstring same as one of the authors.
 df = df.withColumn('submitter', fix_submitter(F.col('submitter'), F.col('authors')))
 
-# Remove unnecessary fields.
+# Rename fields.
+df = df.withColumnRenamed('journal-ref', 'journal_ref')
+df = df.withColumnRenamed('report-no', 'report_number')
+
+# Drop unnecessary fields.
 drop_cols = ['abstract', 'license', 'versions', 'comments', 'authors_parsed']
 df = df.drop(*drop_cols)
 
