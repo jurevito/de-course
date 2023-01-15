@@ -73,6 +73,18 @@ def neo4j_queries():
     file_path = '/data/output/part-00000-32717f90-3564-4323-bc06-a1e708d22acf-c000.json'
     graph = Graph('bolt://neo4j:7687', auth=('neo4j', 'admin'), name='neo4j')
 
+    with open('/data/categories.json', 'r') as categories_file:
+        category_objects = json.load(categories_file)
+        categories = [json_to_cypher_fields(category, []) for category in category_objects]
+        fields = '[%s]' % ','.join(categories)
+
+        query = """
+        UNWIND %s AS category
+        MERGE (c:Category {code: category.code}) SET c = category
+        """ % (fields)
+        graph.run(query)
+
+
     with open(file_path, 'r') as json_file:
         for line in json_file:
             json_object: dict = json.loads(line)
@@ -88,12 +100,18 @@ def neo4j_queries():
                 'n_figures': json_object.get('n_figures', None),
             }
 
+            codes = ["'%s'" % code for code in json_object['categories']]
+            code_strs = "[%s]" % (','.join(codes))
+
             # Add "Publication" nodes.
             fields = json_to_cypher_fields(publication, ['update_date'])
             query = """
+            MATCH (c:Category)
+            WHERE c.code IN %s
             MERGE (n:Publication {doi: '%s'})
             SET n = %s
-            """ % (publication['doi'], fields)
+            MERGE (n)-[:IS_IN]->(c)
+            """ % (code_strs, publication['doi'], fields)
             graph.run(query)
 
             authors = []
