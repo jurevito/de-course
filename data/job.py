@@ -7,12 +7,14 @@ from pyspark.sql.types import *
 spark = SparkSession.builder.getOrCreate()
 
 # Read the JSON file and create a dataframe
-df = spark.read.json('file:///data/ingestion/chunk_0.json')
+df = spark.read.json('file:///data/staging/raw.json')
 
 df = df.filter(F.length(F.col('doi')) > 0)
 
 # Transform existing fields.
 df = df.withColumn('title', F.trim(F.regexp_replace(F.col('title'), '\s+', ' ')))
+df = df.withColumn("title", F.translate(F.col('title'), '\\\'', ''))
+
 df = df.withColumn(
     'update_date', 
     F.date_format(
@@ -62,7 +64,7 @@ def fix_submitter(submitter, authors):
 
     return submitter
 
-# Make submitterstring same as one of the authors.
+# Make submitter string same as one of the authors.
 df = df.withColumn('submitter', fix_submitter(F.col('submitter'), F.col('authors')))
 
 # Rename fields.
@@ -70,7 +72,7 @@ df = df.withColumnRenamed('journal-ref', 'journal_ref')
 df = df.withColumnRenamed('report-no', 'report_number')
 
 # Drop unnecessary fields.
-drop_cols = ['abstract', 'license', 'versions', 'comments', 'authors_parsed', 'id']
+drop_cols = ['abstract', 'license', 'versions', 'comments', 'authors_parsed', 'id', 'journal_ref']
 df = df.drop(*drop_cols)
 
 # Save the dataframe as an array of JSON objects in a JSON file.
