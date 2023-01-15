@@ -88,6 +88,7 @@ def neo4j_queries():
                 'n_figures': json_object.get('n_figures', None),
             }
 
+            # Add "Publication" nodes.
             fields = json_to_cypher_fields(publication, ['update_date'])
             query = """
             MERGE (n:Publication {doi: '%s'})
@@ -105,6 +106,7 @@ def neo4j_queries():
 
                 authors.append(json_to_cypher_fields(person, []))
             
+            # Add "Person" nodes and "IS_AUTHOR" relationships.
             fields = '[%s]' % ','.join(authors)
             query = """
             MATCH (n:Publication {doi: '%s'})
@@ -114,6 +116,14 @@ def neo4j_queries():
             """ % (publication['doi'], fields)
             graph.run(query)
             
+            # Add "SUBMITTED" relationships.
+            if json_object['submitter']['name'] is not None:
+                query = """
+                MATCH (n:Publication {doi: '%s'}), (p:Person {name: '%s', last_name: '%s'})
+                MERGE (p)-[:SUBMITTED]->(n)
+                """ % (publication['doi'], json_object['submitter']['name'], json_object['submitter']['last_name'])
+
+                graph.run(query)
 
 default_args = {
     'depends_on_past': False,
