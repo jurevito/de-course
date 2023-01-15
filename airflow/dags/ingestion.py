@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup
 import requests
 import json
 from py2neo import Graph
+import os
 
 def get_categories():
 
@@ -46,7 +47,7 @@ def get_categories():
     with open('/data/categories.json', 'w+') as json_file:
         json.dump(data, json_file)
 
-def escape_chars(string, chars_to_escape):
+def escape_chars(string, chars_to_escape=['\'']):
     escaped_string = string
     for char in chars_to_escape:
         escaped_string = escaped_string.replace(char, '\\'+char)
@@ -61,7 +62,7 @@ def json_to_cypher_fields(json_object: dict, date_fields: list):
             if key in date_fields:
                 fields.append(f"{key}: date('{val}')")
             elif isinstance(val, str):
-                tmp = escape_chars(val, ['\''])
+                tmp = escape_chars(val)
                 fields.append(f"{key}: '{tmp}'")
             else:
                 fields.append(f"{key}: {val}")
@@ -70,7 +71,7 @@ def json_to_cypher_fields(json_object: dict, date_fields: list):
     return '{%s}' % fields_str
 
 def neo4j_queries():
-    file_path = '/data/output/part-00000-32717f90-3564-4323-bc06-a1e708d22acf-c000.json'
+    file_path = '/data/output/processed.json'
     graph = Graph('bolt://neo4j:7687', auth=('neo4j', 'admin'), name='neo4j')
 
     with open('/data/categories.json', 'r') as categories_file:
@@ -92,7 +93,6 @@ def neo4j_queries():
 
             publication = {
                 'doi': json_object.get('doi', None),
-                'journal_ref': json_object.get('journal_ref', None),
                 'report_number': json_object.get('report_number', None),
                 'title': json_object.get('title', None),
                 'update_date': json_object.get('update_date', None),
@@ -139,9 +139,25 @@ def neo4j_queries():
                 query = """
                 MATCH (n:Publication {doi: '%s'}), (p:Person {name: '%s', last_name: '%s'})
                 MERGE (p)-[:SUBMITTED]->(n)
-                """ % (publication['doi'], json_object['submitter']['name'], json_object['submitter']['last_name'])
+                """ % (publication['doi'], escape_chars(json_object['submitter']['name']), escape_chars(json_object['submitter']['last_name']))
 
                 graph.run(query)
+
+def rename_file(**kwargs):
+    path = kwargs['path']
+    new_name = kwargs['new_name']
+
+    file_name = None
+    for file in os.listdir(path):
+        if file.endswith('.json'):
+            file_name = file
+            break
+    
+    assert file_name is not None
+
+    file_path = os.path.join(path, file_name)
+    new_file_path = os.path.join(path, new_name)
+    os.rename(file_path, new_file_path)
 
 default_args = {
     'depends_on_past': False,
@@ -159,37 +175,73 @@ dag = DAG(
     tags=['example'],
 )
 
-#first_task = BashOperator(
-#    task_id='first_task',
-#    bash_command='echo "I will execute job on Spark node."',
-#    dag=dag,
-#)
-#
-## Fetches information about publication category
-## and saves it into JSON file.
-#categories_task = PythonOperator(
-#    task_id='fetch_categories',
-#    python_callable=get_categories,
-#    dag=dag
-#)
-#
-## Submits a Spark job which transforms data.
-#submit_job = SparkSubmitOperator(
-#    application ='/data/job.py',
-#    conn_id= 'spark_container',
-#    task_id='spark_submit',
-#    name='airflow-spark',
-#    verbose=1,
-#    dag=dag
-#)
+# Fetches information about publication category
+# and saves it into JSON file.
+categories_task = PythonOperator(
+    task_id='fetch_categories',
+    python_callable=get_categories,
+    dag=dag
+)
+
+# Submits a Spark job which transforms data.
+submit_job = SparkSubmitOperator(
+    application ='/data/job.py',
+    conn_id= 'spark_container',
+    task_id='spark_submit',
+    name='airflow-spark',
+    verbose=1,
+    dag=dag
+)
+
+# Waits for a data to appear in staging area.
+# It is then consumed by the pipeline.
+file_sensor = FileSensor(
+    task_id='file_sensor',
+    filepath='/data/staging',
+    fs_conn_id='fs_default',
+    poke_interval=5,
+    dag=dag
+)
+
+# Renames a raw file before Spark job reads it.
+rename_raw_task = PythonOperator(
+    task_id='rename_raw_file',
+    python_callable=rename_file,
+    op_kwargs={'path': '/data/staging', 'new_name': 'raw.json'},
+    dag=dag
+)
+
+# Deletes the raw data file.
+delete_raw_task = BashOperator(
+    task_id='delete_raw_file',
+    bash_command='rm /data/staging/raw.json',
+    dag=dag,
+)
+
+# Renames processed data file before
+# Neo4J reads it.
+rename_processed_task = PythonOperator(
+    task_id='rename_processed_file',
+    python_callable=rename_file,
+    op_kwargs={'path': '/data/output', 'new_name': 'processed.json'},
+    dag=dag
+)
 
 # Executes a query on Neo4j database.
 neo4j_task = PythonOperator(
-    task_id='create_nodes',
+    task_id='neo4j_task',
     python_callable=neo4j_queries,
     dag=dag
 )
 
+# Delete the processed data file after
+# it inserted into database.
+delete_processed_task = BashOperator(
+    task_id='delete_processed_file',
+    bash_command='rm -r /data/output',
+    dag=dag,
+)
+
 # Setup order of execution.
-#first_task >> submit_job >> neo4j_task
-#first_task >> categories_task >> neo4j_task
+file_sensor >> rename_raw_task >> submit_job >> delete_raw_task >> rename_processed_task >> neo4j_task >> delete_processed_task
+categories_task >> neo4j_task
