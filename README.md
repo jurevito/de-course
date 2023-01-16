@@ -19,3 +19,6 @@ Can be accessed at http://localhost:8081.
 1. Setup master and worker nodes using `docker compose up`.
 2. Connect to master node with `docker exec -it <master-container> bash`. Replace `<master-container>` with container's ID.
 3. When you are in bash shell you can run a job using `bin/spark-submit ./work/job.py`.
+
+## Neo4J
+Can be accessed at http://localhost:7474. Login is `neo4j` and password is `admin`.
