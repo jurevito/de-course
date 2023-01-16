@@ -169,7 +169,7 @@ default_args = {
 dag = DAG(
     dag_id='ingestion',
     default_args=default_args,
-    schedule_interval=timedelta(days=1),
+    schedule_interval=timedelta(minutes=10),
     start_date=datetime(2023, 1, 1),
     catchup=False,
     tags=['example'],
