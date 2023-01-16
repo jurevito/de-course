@@ -12,10 +12,5 @@ neo4j/
 .metals
 .vscode
 
-# Temp Docker-Compose
-airflow-compose.yml
-spark-compose.yml
-tmp-compose.yml
-
 # Data
 data/**/*.json
