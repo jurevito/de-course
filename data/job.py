@@ -14,6 +14,7 @@ df = df.filter(F.length(F.col('doi')) > 0)
 # Transform existing fields.
 df = df.withColumn('title', F.trim(F.regexp_replace(F.col('title'), '\s+', ' ')))
 df = df.withColumn("title", F.translate(F.col('title'), '\\\'', ''))
+df = df.withColumn("report-no", F.translate(F.col('report-no'), '\\\'', ''))
 
 df = df.withColumn(
     'update_date', 
@@ -41,7 +42,8 @@ df = df.withColumn(
 
 @udf(returnType=ArrayType(MapType(StringType(), StringType())))
 def map_authors(authors):
-    return [{'name': author[1], 'last_name': author[0]} for author in authors]
+    clean = lambda text: text.translate({ord(x): '' for x in ['\\', '\'']})
+    return [{'name': clean(author[1]), 'last_name': clean(author[0])} for author in authors]
 
 # Change list of lists into list of JSON objects.
 # Each object is one author.

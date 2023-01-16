@@ -25,4 +25,4 @@ def save_chunks(n_chunks, n_records):
 
 
 if __name__ == '__main__':
-    save_chunks(n_chunks=4, n_records=50_000)
+    save_chunks(n_chunks=3, n_records=50_000)
